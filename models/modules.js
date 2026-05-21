@@ -1,5 +1,5 @@
 const { query } = require('../database');
-const { EMPTY_RESULT_ERROR, SQL_ERROR_CODE, UNIQUE_VIOLATION_ERROR } = require('../errors');
+const { EMPTY_RESULT_ERROR, SQL_ERROR_CODE } = require('../errors');
 
 // module.exports.create = function create(code, name, credit) {
 //     const sql = `INSERT INTO module (mod_code, mod_name, credit_unit) VALUES ($1, $2, $3)`;
@@ -13,7 +13,7 @@ const { EMPTY_RESULT_ERROR, SQL_ERROR_CODE, UNIQUE_VIOLATION_ERROR } = require('
 
 module.exports.create = function create(code, name, credit) {
 return query('CALL create_module($1, $2, $3)', [code, name, credit])
-.then(function (result) {
+.then(function () {
 console.log('Module created successfully');
 })
 .catch(function (error) {
@@ -39,7 +39,7 @@ module.exports.retrieveByCode = function retrieveByCode(code) {
 module.exports.deleteByCode = function deleteByCode(code) {
     const sql = `CALL delete_module($1)`;
     return query(sql, [code])
-        .then(function (result) {
+        .then(function () {
             console.log(`Module ${code} deleted successfully`);
         })
         .catch(function (error) {
@@ -49,12 +49,18 @@ module.exports.deleteByCode = function deleteByCode(code) {
 };
 
 module.exports.updateByCode = function updateByCode(code, credit) {
-    const sql = `CALL update_module($1::VARCHAR, $2::INT)`;
-    return query(sql, [code, credit])
-        .then(function (result) {
+    const sql = `CALL update_module($1::VARCHAR, $2::VARCHAR, $3::INT)`;
+    return module.exports.retrieveByCode(code)
+        .then(function (module) {
+            return query(sql, [code, module.modName, credit]);
+        })
+        .then(function () {
             console.log(`Module ${code} updated successfully`);
         })
         .catch(function (error) {
+            if (error.code === SQL_ERROR_CODE.RAISE_EXCEPTION) {
+                throw new EMPTY_RESULT_ERROR(error.message);
+            }
             throw error; 
         });
 };
@@ -62,7 +68,7 @@ module.exports.updateByCode = function updateByCode(code, credit) {
 module.exports.updateModule = function updateModule(code, name, credit) {
     // Invoke the stored procedure using CALL
     return query('CALL update_module($1, $2, $3)', [code, name, credit])
-        .then(function (result) {
+        .then(function () {
             console.log('Module updated successfully');
         })
         .catch(function (error) {
